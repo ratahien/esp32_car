@@ -157,348 +157,411 @@ void setup() {
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(200, "text/html", R"rawliteral(
       <!DOCTYPE html>
-      <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>ESP32 Car Control</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 0;
-            background-color: #f4f7f6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            -webkit-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            overflow-y: auto;
-            padding: 10px;
-          }
-          .container {
-            max-width: 95%;
-            width: auto;
-            margin: 10px auto;
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column; /* Default to column */
-            align-items: center;
-            justify-content: flex-start;
-            flex-wrap: wrap;
-            min-height: auto;
-          }
-          h1 {
-            color: #333;
-            margin-bottom: 25px;
-            font-size: 2em;
-            width: 100%;
-            text-align: center;
-          }
-          .control-sections-wrapper {
-            display: flex;
-            flex-direction: column; /* Default: stack car and pump/servo sections vertically */
-            width: 100%;
-            align-items: center;
-            justify-content: center;
-          }
-          .car-control-section,
-          .pump-servo-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 15px 0; /* Vertical margin for spacing */
-            padding: 10px;
-            border-radius: 8px;
-            background-color: #fcfcfc;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            width: 90%; /* Take up most width in portrait */
-            max-width: 300px; /* Limit max width */
-          }
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ESP32 Car Control</title>
+    <style>
+      :root {
+        --bg-color: #f4f7f6;
+        --container-bg: white;
+        --text-color: #333;
+        --primary-btn-bg: #007bff;
+        --stop-btn-bg: #dc3545;
+        --water-btn-bg: #28a745;
+        --servo-btn-bg: #ffc107;
+        --shadow-light: rgba(0, 0, 0, 0.1);
+        --shadow-medium: rgba(0, 0, 0, 0.2);
+      }
 
-          .car-control-grid {
-            display: grid;
-            grid-template-areas:
-              ". forward ."
-              "left stop right"
-              ". backward .";
-            gap: 12px;
-            margin-bottom: 10px;
-            max-width: 250px;
-            width: 100%;
-          }
-          /* Modified servo-control-grid for "Spray Water" in center */
-          .servo-control-grid {
-            display: grid;
-            grid-template-areas:
-              ". servo-up ."
-              "servo-left water-btn servo-right" /* water-btn in the center */
-              ". servo-down .";
-            gap: 8px;
-            margin-top: 15px;
-            max-width: 180px; /* Adjusted max-width to accommodate water button */
-            width: 100%;
-          }
+      /* Sử dụng box-sizing toàn cục để kiểm soát kích thước dễ hơn */
+      html {
+        box-sizing: border-box;
+      }
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
 
-          .btn {
-            padding: 15px;
-            font-size: 1em;
-            cursor: pointer;
-            border: none;
-            border-radius: 8px;
-            color: white;
-            background-color: #007bff;
-            transition: background-color 0.3s ease, transform 0.1s ease;
-            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
-            -webkit-tap-highlight-color: transparent;
-            min-width: 70px;
-          }
-          .btn.forward { grid-area: forward; }
-          .btn.left { grid-area: left; }
-          .btn.right { grid-area: right; }
-          .btn.backward { grid-area: backward; }
-          .btn.stop {
-            grid-area: stop;
-            background-color: #dc3545;
-            box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2);
-          }
-          .btn.water {
-            background-color: #28a745;
-            box-shadow: 0 4px 10px rgba(40, 167, 69, 0.2);
-            grid-area: water-btn; /* Assign to grid area */
-            width: auto; /* Let grid manage width */
-            margin: 0; /* Remove specific margin for grid item */
-          }
-          .btn.servo {
-            background-color: #ffc107;
-            color: #333;
-            box-shadow: 0 4px 10px rgba(255, 193, 7, 0.2);
-          }
-          .btn.servo:hover {
-            background-color: #e0a800;
-          }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        text-align: center;
+        margin: 0;
+        background-color: var(--bg-color);
+        /* Bỏ padding ở body để container có thể chiếm toàn bộ không gian */
+      }
 
-          .btn.servo-up { grid-area: servo-up; }
-          .btn.servo-left { grid-area: servo-left; }
-          .btn.servo-right { grid-area: servo-right; }
-          .btn.servo-down { grid-area: servo-down; }
+      .container {
+        width: 100vw; /* Chiếm toàn bộ chiều rộng */
+        height: 100svh; /* Chiếm toàn bộ chiều cao thực tế của viewport */
+        margin: 0;
+        background: var(--container-bg);
+        padding: clamp(10px, 2svh, 20px); /* Padding theo chiều cao màn hình */
+        border-radius: 0; /* Bỏ border-radius khi full-screen */
+        box-shadow: none;
 
-          .btn:hover {
-            background-color: #0056b3;
-            transform: translateY(-2px);
-          }
-          .btn.stop:hover { background-color: #c82333; }
-          .btn.water:hover { background-color: #218838; }
-          
-          .btn:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-          }
+        /* Cấu trúc flex để quản lý không gian dọc */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start; /* Bắt đầu từ trên xuống */
+        overflow: hidden; /* Cốt lõi: Cấm cuộn trang trong container */
+      }
 
-          .status-display {
-            font-weight: bold;
-            margin-top: 10px;
-            color: #555;
-            font-size: 0.9em;
-            width: 100%;
-            text-align: center;
-          }
+      h1 {
+        color: var(--text-color);
+        margin: 0 0 clamp(5px, 2svh, 15px) 0;
+        font-size: clamp(
+          1.5em,
+          5svh,
+          2.2em
+        ); /* Kích thước font theo chiều cao */
+        flex-shrink: 0; /* Không cho phép tiêu đề bị co lại */
+      }
 
-          /* --- Media Queries for Landscape Mode --- */
-          @media screen and (orientation: landscape) and (max-height: 500px) {
-            .container {
-              flex-direction: column; /* Title always on top, so container is column */
-              justify-content: flex-start; /* Align content to top */
-              align-items: center; /* Center horizontally */
-              padding: 10px;
-            }
-            h1 {
-              font-size: 1.8em; /* Slightly larger title in landscape */
-              margin-bottom: 15px;
-            }
-            .control-sections-wrapper {
-              flex-direction: row; /* Car and pump/servo sections side-by-side */
-              justify-content: space-around; /* Distribute space */
-              align-items: flex-start; /* Align sections to top */
-              width: 100%;
-              flex-wrap: nowrap; /* Prevent wrapping */
-            }
-            .car-control-section,
-            .pump-servo-section {
-              margin: 0 10px; /* Horizontal margin between sections */
-              flex-shrink: 0; /* Prevent shrinking */
-              width: auto; /* Width auto to fit content */
-              min-width: 180px; /* Minimum width for car control */
-            }
-            .car-control-grid {
-              gap: 8px;
-              margin-bottom: 5px; /* Adjust spacing */
-            }
-            .btn {
-              padding: 10px;
-              font-size: 0.8em;
-              min-width: 60px;
-            }
-            .btn.water {
-              width: auto; /* Let grid manage width */
-            }
-            .servo-control-grid {
-              gap: 5px;
-              margin-top: 10px;
-              max-width: 150px; /* Slightly larger for water button */
-            }
-            .status-display {
-              font-size: 0.75em;
-              margin-top: 5px;
-            }
-          }
+      .control-sections-wrapper {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(15px, 2svh, 20px);
 
-          /* Further optimization for very wide screens (e.g., tablets in landscape) */
-          @media screen and (min-width: 768px) and (orientation: landscape) {
-            .container {
-                max-width: 900px;
-                padding: 30px;
-            }
-            h1 {
-                font-size: 2.2em;
-                margin-bottom: 25px;
-            }
-            .car-control-section,
-            .pump-servo-section {
-                padding: 20px;
-                margin: 0 20px;
-                max-width: none; /* Remove max-width for larger screens */
-            }
-            .car-control-grid {
-                max-width: 300px;
-                gap: 15px;
-            }
-            .btn {
-                padding: 15px;
-                font-size: 1em;
-            }
-            .btn.water {
-                width: auto;
-            }
-            .servo-control-grid {
-                max-width: 180px;
-                gap: 10px;
-            }
-            .status-display {
-                font-size: 0.9em;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>ESP32 Car Control</h1>
+        /* Cốt lõi: Cho phép wrapper này lấp đầy không gian còn lại */
+        flex-grow: 1;
+        min-height: 0; /* Một mẹo flexbox để cho phép co lại đúng cách */
+      }
 
-          <div class="control-sections-wrapper">
-            <div class="car-control-section">
-              <div class="car-control-grid">
-                <button class="btn forward" ontouchstart="sendAction(event, 'forward')" ontouchend="sendAction(event, 'stop')" onmousedown="sendAction(event, 'forward')" onmouseup="sendAction(event, 'stop')">Forward</button>
-                <button class="btn left" ontouchstart="sendAction(event, 'left')" ontouchend="sendAction(event, 'stop')" onmousedown="sendAction(event, 'left')" onmouseup="sendAction(event, 'stop')">Left</button>
-                <button class="btn stop" ontouchstart="sendAction(event, 'stop')" ontouchend="sendAction(event, 'stop')" onmousedown="sendAction(event, 'stop')" onmouseup="sendAction(event, 'stop')">Stop</button>
-                <button class="btn right" ontouchstart="sendAction(event, 'right')" ontouchend="sendAction(event, 'stop')" onmousedown="sendAction(event, 'right')" onmouseup="sendAction('stop')">Right</button>
-                <button class="btn backward" ontouchstart="sendAction(event, 'backward')" ontouchend="sendAction(event, 'stop')" onmousedown="sendAction(event, 'backward')" onmouseup="sendAction('stop')">Backward</button>
-              </div>
-            </div>
+      .car-control-section,
+      .pump-servo-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center; /* Căn giữa nội dung bên trong */
+        padding: clamp(5px, 2vw, 15px);
+        border-radius: 8px;
+        background-color: #fcfcfc;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        width: clamp(280px, 90%, 400px);
+      }
 
-            <div class="pump-servo-section">
-              <div class="servo-control-grid">
-                <button class="btn servo servo-up" ontouchstart="sendServoAction(event, 'servo1_up')" ontouchend="event.preventDefault()" onmousedown="sendServoAction(event, 'servo1_up')" onmouseup="event.preventDefault()">Up</button>
-                <button class="btn servo servo-left" ontouchstart="sendServoAction(event, 'servo2_down')" ontouchend="event.preventDefault()" onmousedown="sendServoAction(event, 'servo2_down')" onmouseup="event.preventDefault()">Left</button>
-                <button class="btn water" ontouchstart="sendPumpAction(event, 'on')" ontouchend="sendPumpAction(event, 'off')" onmousedown="sendPumpAction(event, 'on')" onmouseup="sendPumpAction(event, 'off')">Spray Water</button> <!-- Changed to press-and-hold -->
-                <button class="btn servo servo-right" ontouchstart="sendServoAction(event, 'servo2_up')" ontouchend="event.preventDefault()" onmousedown="sendServoAction(event, 'servo2_up')" onmouseup="event.preventDefault()">Right</button>
-                <button class="btn servo servo-down" ontouchstart="sendServoAction(event, 'servo1_down')" ontouchend="event.preventDefault()" onmousedown="sendServoAction(event, 'servo1_down')" onmouseup="event.preventDefault()">Down</button>
-              </div>
-              <div class="status-display">Pump State: <span id="pumpState">Off</span></div>
-              <div class="status-display">Servo1 (Pan): <span id="servo1State">90</span>&deg;</div>
-              <div class="status-display">Servo2 (Tilt): <span id="servo2State">90</span>&deg;</div>
-            </div>
+      .car-control-grid,
+      .servo-control-grid {
+        display: grid;
+        gap: clamp(8px, 1.5vw, 12px);
+        width: 100%;
+        max-width: 250px;
+      }
+
+      .car-control-grid {
+        grid-template-areas:
+          ". forward ."
+          "left stop right"
+          ". backward .";
+      }
+
+      .servo-control-grid {
+        grid-template-areas:
+          ". servo-up ."
+          "servo-left water-btn servo-right"
+          ". servo-down .";
+        max-width: 220px;
+      }
+
+      .btn {
+        padding: clamp(10px, 2.5vw, 15px);
+        font-size: clamp(0.9rem, 2vw, 1rem);
+        cursor: pointer;
+        border: none;
+        border-radius: 8px;
+        color: white;
+        background-color: var(--primary-btn-bg);
+        transition: transform 0.1s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* Các style khác của .btn giữ nguyên */
+      .btn.forward {
+        grid-area: forward;
+      }
+      .btn.left {
+        grid-area: left;
+      }
+      .btn.right {
+        grid-area: right;
+      }
+      .btn.backward {
+        grid-area: backward;
+      }
+      .btn.stop {
+        grid-area: stop;
+        background-color: var(--stop-btn-bg);
+      }
+      .btn.water {
+        grid-area: water-btn;
+        background-color: var(--water-btn-bg);
+      }
+      .btn.servo {
+        background-color: var(--servo-btn-bg);
+        color: #333;
+      }
+      .btn.servo-up {
+        grid-area: servo-up;
+      }
+      .btn.servo-left {
+        grid-area: servo-left;
+      }
+      .btn.servo-right {
+        grid-area: servo-right;
+      }
+      .btn.servo-down {
+        grid-area: servo-down;
+      }
+      .btn:active {
+        transform: scale(0.95);
+      }
+
+      .status-display {
+        font-weight: bold;
+        margin-top: 5px;
+        color: #555;
+        font-size: clamp(0.75rem, 1.8svh, 0.9rem);
+      }
+
+      /* --- Media Query CHÍNH cho chế độ màn hình ngang --- */
+      @media screen and (orientation: landscape) {
+        .container {
+          justify-content: center; /* Căn giữa toàn bộ nội dung trong không gian ngang */
+        }
+
+        .control-sections-wrapper {
+          flex-direction: row; /* Đặt 2 khối điều khiển cạnh nhau */
+          align-items: center; /* Căn giữa theo chiều dọc */
+          justify-content: space-evenly; /* Phân bố đều không gian */
+          gap: 15px;
+        }
+
+        .car-control-section,
+        .pump-servo-section {
+          width: clamp(220px, 45%, 300px); /* Điều chỉnh lại chiều rộng */
+          height: 90%; /* Giới hạn chiều cao của các box */
+          padding: 10px;
+        }
+
+        .car-control-grid,
+        .servo-control-grid {
+          gap: clamp(5px, 1.5vw, 10px); /* Giảm khoảng cách nút */
+          width: 100%;
+          height: 100%;
+          flex-grow: 1; /* Cho phép grid lấp đầy không gian trong section */
+          align-content: center; /* Căn các hàng grid vào giữa */
+        }
+
+        .btn {
+          padding: clamp(8px, 2vh, 12px); /* Padding theo chiều cao màn hình */
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>ESP32 Car Control</h1>
+
+      <div class="control-sections-wrapper">
+        <div class="car-control-section">
+          <div class="car-control-grid">
+            <button
+              class="btn forward"
+              ontouchstart="sendAction(event, 'forward')"
+              ontouchend="sendAction(event, 'stop')"
+              onmousedown="sendAction(event, 'forward')"
+              onmouseup="sendAction(event, 'stop')"
+            >
+              Forward
+            </button>
+            <button
+              class="btn left"
+              ontouchstart="sendAction(event, 'left')"
+              ontouchend="sendAction(event, 'stop')"
+              onmousedown="sendAction(event, 'left')"
+              onmouseup="sendAction(event, 'stop')"
+            >
+              Left
+            </button>
+            <button
+              class="btn stop"
+              ontouchstart="sendAction(event, 'stop')"
+              ontouchend="sendAction(event, 'stop')"
+              onmousedown="sendAction(event, 'stop')"
+              onmouseup="sendAction(event, 'stop')"
+            >
+              Stop
+            </button>
+            <button
+              class="btn right"
+              ontouchstart="sendAction(event, 'right')"
+              ontouchend="sendAction(event, 'stop')"
+              onmousedown="sendAction(event, 'right')"
+              onmouseup="sendAction('stop')"
+            >
+              Right
+            </button>
+            <button
+              class="btn backward"
+              ontouchstart="sendAction(event, 'backward')"
+              ontouchend="sendAction(event, 'stop')"
+              onmousedown="sendAction(event, 'backward')"
+              onmouseup="sendAction('stop')"
+            >
+              Backward
+            </button>
           </div>
         </div>
 
-        <script>
-          function sendAction(event, action) {
-            if (event.cancelable) {
-                event.preventDefault();
-            }
-            console.log("Sending car action: " + action);
-            var xhr = new XMLHttpRequest();
-            xhr.open("GET", "/control?action=" + action, true);
-            xhr.send();
+        <div class="pump-servo-section">
+          <div class="servo-control-grid">
+            <button
+              class="btn servo servo-up"
+              ontouchstart="sendServoAction(event, 'servo1_up')"
+              ontouchend="event.preventDefault()"
+              onmousedown="sendServoAction(event, 'servo1_up')"
+              onmouseup="event.preventDefault()"
+            >
+              Up
+            </button>
+            <button
+              class="btn servo servo-left"
+              ontouchstart="sendServoAction(event, 'servo2_down')"
+              ontouchend="event.preventDefault()"
+              onmousedown="sendServoAction(event, 'servo2_down')"
+              onmouseup="event.preventDefault()"
+            >
+              Left
+            </button>
+            <button
+              class="btn water"
+              ontouchstart="sendPumpAction(event, 'on')"
+              ontouchend="sendPumpAction(event, 'off')"
+              onmousedown="sendPumpAction(event, 'on')"
+              onmouseup="sendPumpAction(event, 'off')"
+            >
+              Spray Water
+            </button>
+            <!-- Changed to press-and-hold -->
+            <button
+              class="btn servo servo-right"
+              ontouchstart="sendServoAction(event, 'servo2_up')"
+              ontouchend="event.preventDefault()"
+              onmousedown="sendServoAction(event, 'servo2_up')"
+              onmouseup="event.preventDefault()"
+            >
+              Right
+            </button>
+            <button
+              class="btn servo servo-down"
+              ontouchstart="sendServoAction(event, 'servo1_down')"
+              ontouchend="event.preventDefault()"
+              onmousedown="sendServoAction(event, 'servo1_down')"
+              onmouseup="event.preventDefault()"
+            >
+              Down
+            </button>
+          </div>
+          <div class="status-display">
+            Pump State: <span id="pumpState">Off</span>
+          </div>
+          <div class="status-display">
+            Servo1 (Pan): <span id="servo1State">90</span>&deg;
+          </div>
+          <div class="status-display">
+            Servo2 (Tilt): <span id="servo2State">90</span>&deg;
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function sendAction(event, action) {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+        console.log("Sending car action: " + action);
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "/control?action=" + action, true);
+        xhr.send();
+      }
+
+      // New function for pump press-and-hold control
+      function sendPumpAction(event, state) {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+        console.log("Setting pump state: " + state);
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+          if (this.readyState == 4 && this.status == 200) {
+            document.getElementById("pumpState").innerText = this.responseText;
           }
+        };
+        xhr.open("GET", "/pump_control?action=" + state, true); // Changed endpoint to /pump_control
+        xhr.send();
+      }
 
-          // New function for pump press-and-hold control
-          function sendPumpAction(event, state) {
-            if (event.cancelable) {
-                event.preventDefault();
+      function sendServoAction(event, action) {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+        console.log("Sending servo action: " + action);
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+          if (this.readyState == 4 && this.status == 200) {
+            const response = JSON.parse(this.responseText);
+            if (response.servo1_pos !== undefined) {
+              document.getElementById("servo1State").innerText =
+                response.servo1_pos;
             }
-            console.log("Setting pump state: " + state);
-            var xhr = new XMLHttpRequest();
-            xhr.onreadystatechange = function() {
-              if (this.readyState == 4 && this.status == 200) {
-                document.getElementById("pumpState").innerText = this.responseText;
-              }
-            };
-            xhr.open("GET", "/pump_control?action=" + state, true); // Changed endpoint to /pump_control
-            xhr.send();
-          }
-
-          function sendServoAction(event, action) {
-            if (event.cancelable) {
-                event.preventDefault();
+            if (response.servo2_pos !== undefined) {
+              document.getElementById("servo2State").innerText =
+                response.servo2_pos;
             }
-            console.log("Sending servo action: " + action);
-            var xhr = new XMLHttpRequest();
-            xhr.onreadystatechange = function() {
-              if (this.readyState == 4 && this.status == 200) {
-                const response = JSON.parse(this.responseText);
-                if (response.servo1_pos !== undefined) {
-                    document.getElementById("servo1State").innerText = response.servo1_pos;
-                }
-                if (response.servo2_pos !== undefined) {
-                    document.getElementById("servo2State").innerText = response.servo2_pos;
-                }
-              }
-            };
-            xhr.open("GET", "/servo_control?action=" + action, true);
-            xhr.send();
           }
+        };
+        xhr.open("GET", "/servo_control?action=" + action, true);
+        xhr.send();
+      }
 
-          // Update all states on page load
-          window.onload = function() {
-            // Get pump state
-            var pumpXhr = new XMLHttpRequest();
-            pumpXhr.onreadystatechange = function() {
-              if (this.readyState == 4 && this.status == 200) {
-                document.getElementById("pumpState").innerText = this.responseText;
-              }
-            };
-            pumpXhr.open("GET", "/getPumpState", true);
-            pumpXhr.send();
+      // Update all states on page load
+      window.onload = function () {
+        // Get pump state
+        var pumpXhr = new XMLHttpRequest();
+        pumpXhr.onreadystatechange = function () {
+          if (this.readyState == 4 && this.status == 200) {
+            document.getElementById("pumpState").innerText = this.responseText;
+          }
+        };
+        pumpXhr.open("GET", "/getPumpState", true);
+        pumpXhr.send();
 
-            // Get servo states
-            var servoXhr = new XMLHttpRequest();
-            servoXhr.onreadystatechange = function() {
-              if (this.readyState == 4 && this.status == 200) {
-                const response = JSON.parse(this.responseText);
-                document.getElementById("servo1State").innerText = response.servo1_pos;
-                document.getElementById("servo2State").innerText = response.servo2_pos;
-              }
-            };
-            servoXhr.open("GET", "/getServoState", true);
-            servoXhr.send();
-          };
-        </script>
-      </body>
-      </html>
+        // Get servo states
+        var servoXhr = new XMLHttpRequest();
+        servoXhr.onreadystatechange = function () {
+          if (this.readyState == 4 && this.status == 200) {
+            const response = JSON.parse(this.responseText);
+            document.getElementById("servo1State").innerText =
+              response.servo1_pos;
+            document.getElementById("servo2State").innerText =
+              response.servo2_pos;
+          }
+        };
+        servoXhr.open("GET", "/getServoState", true);
+        servoXhr.send();
+      };
+    </script>
+  </body>
+</html>
+
     )rawliteral");
   });
 
